@@ -1,4 +1,60 @@
+--------------------------------------------------------
+-- PREPARAÇÃO PARA INICIAR O SCRIPT --
+--------------------------------------------------------
+DROP DATABASE IF EXISTS uvv;
 
+DROP ROLE IF EXISTS juanescossia;
+
+DROP USER IF EXISTS juanescossia;
+
+--------------------------------------------------------
+-- CRIANDO O USUÁRIO --
+--------------------------------------------------------
+CREATE USER juanescossia WITH
+CREATEDB
+CREATEROLE
+ENCRYPTED PASSWORD '202307251'
+;
+
+--------------------------------------------------------
+-- CRIANDO O BANCO DE DADOS --
+--------------------------------------------------------
+SET ROLE juanescossia
+;
+
+CREATE DATABASE uvv WITH
+OWNER = juanescossia
+TEMPLATE = template0
+ENCODING = 'UTF8'
+LC_COLLATE = 'pt_BR.UTF-8'
+LC_CTYPE = 'pt_BR.UTF-8'
+ALLOW_CONNECTIONS = true
+;
+
+----------------------------------------------------------
+-- TROCANDO A CONEXÃO --
+----------------------------------------------------------
+SET PGPASSWORD '202307251'
+\c uvv juanescossia
+
+----------------------------------------------------------
+-- CRIANDO O SCHEMA --
+----------------------------------------------------------
+DROP SCHEMA IF EXISTS lojas
+;
+
+CREATE SCHEMA IF NOT EXISTS lojas
+AUTHORIZATION juanescossia
+;
+
+ALTER DATABASE uvv SET SEARCH_PATH TO lojas, "$user", public
+;
+
+SET SEARCH_PATH TO lojas;
+
+----------------------------------------------------------
+-- CRIANDO TABELA PRODUTOS --
+----------------------------------------------------------
 CREATE TABLE produtos (
                 produto_id                  BIGINT         NOT NULL,
                 nome                        VARCHAR(255)   NOT NULL,
@@ -22,7 +78,9 @@ COMMENT ON COLUMN produtos.imagem_arquivo               IS 'Coluna contendo o ar
 COMMENT ON COLUMN produtos.imagem_charset               IS 'Coluna contendo o charset de cada imagem dos produtos � venda nas lojas. Allows null.';
 COMMENT ON COLUMN produtos.imagem_ultima_atualizacao    IS 'Coluna contendo a data da �ltima atualiza��o da imagem de cada produto � venda nas lojas. Allows null.';
 
-
+-----------------------------------------------------------
+-- CRIANDO TABELA LOJAS --
+-----------------------------------------------------------
 CREATE TABLE lojas (
                 loja_id                     BIGINT        NOT NULL,
                 nome                        VARCHAR(255)  NOT NULL,
@@ -50,7 +108,9 @@ COMMENT ON COLUMN lojas.logo_arquivo                IS 'Coluna contendo o arquiv
 COMMENT ON COLUMN lojas.logo_charset                IS 'Coluna contendo o charset da logo da loja. Allows null.';
 COMMENT ON COLUMN lojas.logo_ultima_atualizacao     IS 'Coluna contendo a data da �ltima atualiza��o da logo da loja. Allows null.';
 
-
+---------------------------------------------------------------
+-- CRIANDO TABELA ESTOQUES -- 
+---------------------------------------------------------------
 CREATE TABLE estoques (
                 estoque_id      BIGINT   NOT NULL,
                 loja_id         BIGINT   NOT NULL,
@@ -64,7 +124,9 @@ COMMENT ON COLUMN estoques.loja_id      IS 'Coluna contendo o identificador de c
 COMMENT ON COLUMN estoques.produto_id   IS 'Coluna contendo o identificador de cada produto. Foreign key referenciando a tabela produtos. Not null.';
 COMMENT ON COLUMN estoques.quantidade   IS 'Coluna contendo a quantidade de cada produto no estoque de cada loja. Not null.';
 
-
+---------------------------------------------------------------
+-- CRIANDO TABELA CLIENTES --
+---------------------------------------------------------------
 CREATE TABLE clientes (
                 cliente_id      BIGINT          NOT NULL,
                 email           VARCHAR(255)    NOT NULL,
@@ -82,7 +144,9 @@ COMMENT ON COLUMN clientes.telefone2    IS 'Segunda coluna contendo um n�mero 
 COMMENT ON COLUMN clientes.telefone3    IS 'Terceira coluna contendo um n�mero de telefone do cliente. Allows null.';
 COMMENT ON COLUMN clientes.nome         IS 'Coluna contendo o nome do cliente. Not null.';
 
-
+---------------------------------------------------------------
+-- CRIANDO TABELA ENVIOS --
+---------------------------------------------------------------
 CREATE TABLE envios (
                 envio_id            BIGINT          NOT NULL,
                 loja_id             BIGINT          NOT NULL,
@@ -98,7 +162,9 @@ COMMENT ON COLUMN envios.cliente_id         IS 'Coluna contendo o identificador 
 COMMENT ON COLUMN envios.endereco_entrega   IS 'Coluna contendo o endere�o de entrega de cada envio. Not null.';
 COMMENT ON COLUMN envios.status             IS 'Coluna contendo o status do envio de cada envio. Not null.';
 
-
+---------------------------------------------------------------
+-- CRIANDO TABELA PEDIDOS --
+---------------------------------------------------------------
 CREATE TABLE pedidos (
                 pedido_id       BIGINT          NOT NULL,
                 data_hora       TIMESTAMP       NOT NULL,
@@ -114,7 +180,9 @@ COMMENT ON COLUMN pedidos.cliente_id    IS 'Coluna contendo o identificador do c
 COMMENT ON COLUMN pedidos.status        IS 'Coluna contendo o status dos pedidos realizados pelos clientes. Not null.';
 COMMENT ON COLUMN pedidos.loja_id       IS 'Coluna contendo o identificador da loja na tabela pedidos. Foreign key referenciando tabela lojas. Not null.';
 
-
+---------------------------------------------------------------
+-- CRIANDO TABELA PEDIDOS_ITENS -- 
+---------------------------------------------------------------
 CREATE TABLE pedidos_itens (
                 pedido_id           BIGINT          NOT NULL,
                 produto_id          BIGINT          NOT NULL,
@@ -132,7 +200,11 @@ COMMENT ON COLUMN pedidos_itens.envio_id            IS 'Coluna contendo o identi
 COMMENT ON COLUMN pedidos_itens.numero_da_linha     IS 'Coluna contendo o n�mero da linha de cada linha que cont�m informa��es sobre a tabela pedidos_itens. Not null.';
 COMMENT ON COLUMN pedidos_itens.preco_unitario      IS 'Coluna contendo o pre�o unit�rio de cada produto. Not null.';
 
+--------------------------------------------------------------
+-- CRIANDO FOREIGN KEYS --
+--------------------------------------------------------------
 
+-- FK PRODUTOS / ESTOQUES --
 ALTER TABLE estoques ADD CONSTRAINT fk_produtos_estoques
 FOREIGN KEY (produto_id)
 REFERENCES produtos (produto_id)
@@ -140,6 +212,7 @@ ON DELETE NO ACTION
 ON UPDATE NO ACTION
 NOT DEFERRABLE;
 
+-- FK PRODUTOS / PEDIDOS_ITENS --
 ALTER TABLE pedidos_itens ADD CONSTRAINT fk_produtos_pedidos_itens
 FOREIGN KEY (produto_id)
 REFERENCES produtos (produto_id)
@@ -147,6 +220,7 @@ ON DELETE NO ACTION
 ON UPDATE NO ACTION
 NOT DEFERRABLE;
 
+-- FK LOJAS / PEDIDOS --
 ALTER TABLE pedidos ADD CONSTRAINT fk_lojas_pedidos
 FOREIGN KEY (loja_id)
 REFERENCES lojas (loja_id)
@@ -154,6 +228,7 @@ ON DELETE NO ACTION
 ON UPDATE NO ACTION
 NOT DEFERRABLE;
 
+-- FK LOJAS / ESTOQUES --
 ALTER TABLE estoques ADD CONSTRAINT fk_lojas_estoques
 FOREIGN KEY (loja_id)
 REFERENCES lojas (loja_id)
@@ -161,6 +236,7 @@ ON DELETE NO ACTION
 ON UPDATE NO ACTION
 NOT DEFERRABLE;
 
+-- FK LOJAS / ENVIOS --
 ALTER TABLE envios ADD CONSTRAINT fk_lojas_envios
 FOREIGN KEY (loja_id)
 REFERENCES lojas (loja_id)
@@ -168,6 +244,7 @@ ON DELETE NO ACTION
 ON UPDATE NO ACTION
 NOT DEFERRABLE;
 
+-- FK CLIENTES / PEDIDOS --
 ALTER TABLE pedidos ADD CONSTRAINT fk_clientes_pedidos
 FOREIGN KEY (cliente_id)
 REFERENCES clientes (cliente_id)
@@ -175,6 +252,7 @@ ON DELETE NO ACTION
 ON UPDATE NO ACTION
 NOT DEFERRABLE;
 
+-- FK CLIENTES / ENVIOS --
 ALTER TABLE envios ADD CONSTRAINT fk_clientes_envios
 FOREIGN KEY (cliente_id)
 REFERENCES clientes (cliente_id)
@@ -182,6 +260,7 @@ ON DELETE NO ACTION
 ON UPDATE NO ACTION
 NOT DEFERRABLE;
 
+-- FK ENVIOS / PEDIDOS_ITENS -- 
 ALTER TABLE pedidos_itens ADD CONSTRAINT fk_envios_pedidos_itens
 FOREIGN KEY (envio_id)
 REFERENCES envios (envio_id)
@@ -189,6 +268,7 @@ ON DELETE NO ACTION
 ON UPDATE NO ACTION
 NOT DEFERRABLE;
 
+-- FK PEDIDOS / PEDIDOS_ITENS --
 ALTER TABLE pedidos_itens ADD CONSTRAINT fk_pedidos_pedidos_itens
 FOREIGN KEY (pedido_id)
 REFERENCES pedidos (pedido_id)
