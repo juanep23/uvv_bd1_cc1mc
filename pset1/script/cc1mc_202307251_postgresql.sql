@@ -25,6 +25,8 @@ ENCRYPTED PASSWORD '202307251'
 --------------------------------------------------------
 -- CRIANDO O BANCO DE DADOS UVV --
 --------------------------------------------------------
+
+-- ESCOLHENDO O ROLE EM QUE O BD SERÁ CRIADO --
 SET ROLE juanescossia
 ;
 
@@ -42,7 +44,11 @@ ALLOW_CONNECTIONS = true
 ----------------------------------------------------------
 -- TROCANDO A CONEXÃO PARA O USUÁRIO DO BANCO DE DADOS ---
 ----------------------------------------------------------
+
+-- SALVANDO A SENHA COMO VARIÁVEL --
 \setenv PGPASSWORD 202307251
+
+-- CONECTANDO-SE AO BANCO DE DADOS --
 \c uvv juanescossia
 
 
@@ -70,16 +76,18 @@ SET SEARCH_PATH TO lojas;
 -- CRIANDO TABELA PRODUTOS --
 ----------------------------------------------------------
 CREATE TABLE produtos (
-                produto_id                  BIGINT         NOT NULL,
+                produto_id                  BIGINT         NOT NULL  CONSTRAINT cc_produtos_produtos_id    CHECK (produto_id > 0),
                 nome                        VARCHAR(255)   NOT NULL,
-                preco_unitario              NUMERIC(10,2),
+                preco_unitario              NUMERIC(10,2)            CONSTRAINT cc_produtos_preco_unitario CHECK (preco_unitario >= 0),
                 detalhes                    BYTEA,
                 imagem                      BYTEA,
                 imagem_mime_type            VARCHAR(512),
                 imagem_arquivo              VARCHAR(512),
                 imagem_charset              VARCHAR(512),
                 imagem_ultima_atualizacao   DATE,
+                
                 CONSTRAINT pk_produtos PRIMARY KEY (produto_id) -- PK DA TABELA PRODUTOS --
+                
 );
 
 -- COMENTÁRIOS DA TABELA PRODUTOS --
@@ -100,7 +108,7 @@ COMMENT ON COLUMN produtos.imagem_ultima_atualizacao    IS 'Coluna contendo a da
 -- CRIANDO TABELA LOJAS --
 -----------------------------------------------------------
 CREATE TABLE lojas (
-                loja_id                     BIGINT        NOT NULL,
+                loja_id                     BIGINT        NOT NULL  CONSTRAINT cc_lojas_loja_id CHECK (loja_id > 0),
                 nome                        VARCHAR(255)  NOT NULL,
                 endereco_web                VARCHAR(100),
                 endereco_fisico             VARCHAR(512),
@@ -111,6 +119,9 @@ CREATE TABLE lojas (
                 logo_arquivo                VARCHAR(512),
                 logo_charset                VARCHAR(512),
                 logo_ultima_atualizacao     DATE,
+
+                CHECK ((endereco_web IS NOT NULL) OR (endereco_fisico IS NOT NULL)), -- CHECK DE PREENCHIMENTO OBRIGATÓRIO DE UMA DAS COLUNAS --
+
                 CONSTRAINT pk_lojas PRIMARY KEY (loja_id) -- PK DA TABELA LOJAS --
 );
 
@@ -134,10 +145,11 @@ COMMENT ON COLUMN lojas.logo_ultima_atualizacao     IS 'Coluna contendo a data d
 -- CRIANDO TABELA ESTOQUES --
 ---------------------------------------------------------------
 CREATE TABLE estoques (
-                estoque_id      BIGINT   NOT NULL,
-                loja_id         BIGINT   NOT NULL,
-                produto_id      BIGINT   NOT NULL,
-                quantidade      BIGINT,
+                estoque_id      BIGINT   NOT NULL  CONSTRAINT cc_estoques_estoque_id  CHECK (estoque_id > 0),
+                loja_id         BIGINT   NOT NULL  CONSTRAINT cc_estoques_loja_id     CHECK (loja_id > 0),
+                produto_id      BIGINT   NOT NULL  CONSTRAINT cc_estoques_produtos_id CHECK (produto_id > 0),
+                quantidade      BIGINT             CONSTRAINT cc_estoques_quantidade  CHECK (quantidade >= 0),
+
                 CONSTRAINT pk_estoques PRIMARY KEY (estoque_id) -- PK DA TABELA ESTOQUES --
 );
 
@@ -154,12 +166,13 @@ COMMENT ON COLUMN estoques.quantidade   IS 'Coluna contendo a quantidade de cada
 -- CRIANDO TABELA CLIENTES --
 ---------------------------------------------------------------
 CREATE TABLE clientes (
-                cliente_id      BIGINT          NOT NULL,
+                cliente_id      BIGINT          NOT NULL  CONSTRAINT cc_clientes_cliente_id CHECK (cliente_id > 0),
                 email           VARCHAR(255)    NOT NULL,
                 telefone1       VARCHAR(20),
                 telefone2       VARCHAR(20),
                 telefone3       VARCHAR(20),
                 nome            VARCHAR(255)    NOT NULL,
+
                 CONSTRAINT pk_clientes PRIMARY KEY (cliente_id) -- PK DA TABELA CLIENTES --
 );
 
@@ -178,11 +191,12 @@ COMMENT ON COLUMN clientes.nome         IS 'Coluna contendo o nome do cliente. N
 -- CRIANDO TABELA ENVIOS --
 ---------------------------------------------------------------
 CREATE TABLE envios (
-                envio_id            BIGINT          NOT NULL,
-                loja_id             BIGINT          NOT NULL,
-                cliente_id          BIGINT          NOT NULL,
+                envio_id            BIGINT          NOT NULL  CONSTRAINT cc_envios_envio_id    CHECK (envio_id > 0),
+                loja_id             BIGINT          NOT NULL  CONSTRAINT cc_envios_loja_id     CHECK (loja_id > 0),
+                cliente_id          BIGINT          NOT NULL  CONSTRAINT cc_envios_cliente_id  CHECK (cliente_id > 0),
                 endereco_entrega    VARCHAR(512)    NOT NULL,
-                status              VARCHAR(15)     NOT NULL,
+                status              VARCHAR(15)     NOT NULL  CONSTRAINT cc_envios_status      CHECK (status in ('CRIADO', 'ENVIADO', 'TRANSITO', 'ENTREGUE')),
+
                 CONSTRAINT pk_envios PRIMARY KEY (envio_id) --PK DA TABELA ENVIOS --
 );
 
@@ -200,11 +214,12 @@ COMMENT ON COLUMN envios.status             IS 'Coluna contendo o status do envi
 -- CRIANDO TABELA PEDIDOS --
 ---------------------------------------------------------------
 CREATE TABLE pedidos (
-                pedido_id       BIGINT          NOT NULL,
+                pedido_id       BIGINT          NOT NULL  CONSTRAINT cc_pedidos_pedido_id   CHECK (pedido_id > 0),
                 data_hora       TIMESTAMP       NOT NULL,
-                cliente_id      BIGINT          NOT NULL,
-                status          VARCHAR(15)     NOT NULL,
+                cliente_id      BIGINT          NOT NULL  CONSTRAINT cc_pedidos_cliente_id  CHECK (cliente_id > 0),
+                status          VARCHAR(15)     NOT NULL  CONSTRAINT cc_pedidos_status      CHECK (status in('CANCELADO', 'COMPLETO', 'ABERTO', 'PAGO', 'REEMBOLSADO', 'ENVIADO')),
                 loja_id         BIGINT          NOT NULL,
+
                 CONSTRAINT pk_pedidos PRIMARY KEY (pedido_id) -- PK DA TABELA PEDIDOS --
 );
 
@@ -222,12 +237,13 @@ COMMENT ON COLUMN pedidos.loja_id       IS 'Coluna contendo o identificador da l
 -- CRIANDO TABELA PEDIDOS_ITENS -- 
 ---------------------------------------------------------------
 CREATE TABLE pedidos_itens (
-                pedido_id           BIGINT          NOT NULL,
-                produto_id          BIGINT          NOT NULL,
-                quantidade          BIGINT          NOT NULL,
-                envio_id            BIGINT,
+                pedido_id           BIGINT          NOT NULL  CONSTRAINT cc_pedidos_itens_pedido_id       CHECK (pedido_id > 0),
+                produto_id          BIGINT          NOT NULL  CONSTRAINT cc_pedidos_itens_produto_id      CHECK (produto_id > 0),
+                quantidade          BIGINT          NOT NULL  CONSTRAINT cc_pedidos_itens_quantidade      CHECK (quantidade >= 0),
+                envio_id            BIGINT                    CONSTRAINT cc_pedidos_itens_envio_id        CHECK (envio_id > 0),
                 numero_da_linha     BIGINT          NOT NULL,
-                preco_unitario      NUMERIC(10,2)   NOT NULL,
+                preco_unitario      NUMERIC(10,2)   NOT NULL  CONSTRAINT cc_pedidos_itens_preco_unitario  CHECK (preco_unitario >= 0),
+
                 CONSTRAINT pk_pedidos_itens PRIMARY KEY (pedido_id, produto_id) -- PK COMPOSTA DA TABELA PEDIDOS_ITENS --
 );
 
