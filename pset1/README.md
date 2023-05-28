@@ -1,6 +1,6 @@
 # PROBLEM SET 1
 
-## Este é o 1º pset da disciplina Banco de Dados I.
+## Este é o 1º pset da disciplina Bancos de Dados I.
 
 
 - [Instruções](https://github.com/juanep23/uvv_bd1_cc1mc/tree/main/pset1/instructions)
